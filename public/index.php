@@ -1,19 +1,35 @@
 <?php
 
-var_dump(hex2bin($str));
+require __DIR__ . '/../vendor/autoload.php';
 
-exit;
-require __DIR__ . '/../bootstrap/autoload.php';
+$crawler = new Jrw\Crawler\TestCrawler;
 
+$test = new Jrw\Test\Test;
+// $ret = $crawler->doRequest("https://tiku.baidu.com/web/quedetail/ebfc4c11f18583d0496459c9");
 
-use MongoDB\Driver\Manager;
-$m = new Manager("mongodb://root:root@mongodb/admin");
-var_dump($m);
+$ret = $test->testDoRequest();
 
-$bulk = new MongoDB\Driver\BulkWrite;
-$document = ['_id' => new MongoDB\BSON\ObjectID, 'name' => 'whtat'];
+var_dump($ret);
 
-$_id= $bulk->insert($document);
-$m->executeBulkWrite('zm_crawler.zm',$bulk);
+$ret = $test->testSave2db($test->url, $ret);
 
-var_dump($_id);
+var_dump($ret);
+
+$ret = $test->testgetlatest();
+
+var_dump($ret);
+
+// $ret = iconv('utf-8', 'gbk/IGNORE',  $ret);
+// var_dump($ret);
+
+// $cursor = $crawler->getLastest();
+// var_dump($cursor);
+
+// $redis = new Jrw\Core\Redis();
+
+// var_dump($redis->ping());
+
+// $crawler = new Jrw\Crawler\TestCrawler;
+
+// $crawler->run();
+// $crawler->find();
