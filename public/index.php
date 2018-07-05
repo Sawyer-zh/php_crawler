@@ -1,6 +1,19 @@
 <?php
 
 require __DIR__ . '/../vendor/autoload.php';
+$url = 'http://www.mutouw.com';
+
+$obj = new Jrw\Crawler\TestCrawler($url);
+
+$obj->addBaseUrl();
+
+
+$reflectionClass = new ReflectionClass($obj);
+
+$crawler = $reflectionClass->newInstance($url);
+
+$crawler->run();
+exit;
 
 $crawler = new Jrw\Crawler\TestCrawler;
 

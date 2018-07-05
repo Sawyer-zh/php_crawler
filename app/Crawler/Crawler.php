@@ -39,23 +39,21 @@ abstract class Crawler implements CrawlerState
         $this->_mongodb = new MongoDB();
         $this->_collection = $this->_mongodb->{$this->_mongodbName}->{$this->_table};
         $this->_requestClient = new Request();
-        $this->addBaseUrl();
+        $this->_key = self::QUEUE_TODO_PRIFIX . $this->_table;
     }
 
     public function addBaseUrl()
     {
         if (empty($this->_baseUrl)) {
-            exit("please add the root website address");
+            return false;
         }
-
-        $this->_key = self::QUEUE_TODO_PRIFIX . $this->_table;
 
         $element = array(
             'url' => $this->_baseUrl,
             'attempts' => 0,
         );
 
-        $this->_redis->zAdd($this->_key, time(), json_encode($element));
+        return $this->_redis->zAdd($this->_key, time(), json_encode($element)) !== false;
 
     }
 
@@ -63,7 +61,7 @@ abstract class Crawler implements CrawlerState
     {
         $ret = $this->_redis->zRange($this->_key, 0, 0);
         if (empty($ret)) {
-            exit("empty todo queue");
+            return false;
         }
         $this->_redis->zRemRangeByRank($this->_key, 0, 0);
         $element = json_decode($ret[0], true);
@@ -74,10 +72,12 @@ abstract class Crawler implements CrawlerState
     {
         $url = $element['url'];
         $request = $this->_requestClient->get($url);
-        $response = $request->send();
-        if (($code = $response->getStatusCode()) != '200') {
-            $element['code'] = $code;
+        try {
+            $response = $request->send();
+        } catch (\Exception $e) {
+            $element['error'] = $e->getMessage();
             $this->handlerErrorRequest($element);
+            return false;
         }
         return $response->getBody(true);
     }
@@ -90,21 +90,30 @@ abstract class Crawler implements CrawlerState
             $element['attemps']++;
             $this->_redis->zAdd($this->_key, time(), json_encode($element));
         }
-        exit;
     }
 
     public function run()
     {
         $element = $this->getUrl();
-        $ret = $this->doRequest($element);
+
+        if (!$element) {
+            exit("can not get a url");
+        }
 
         if ($this->_redis->sIsMember(self::QUEUE_FINISH_PRIFIX . $this->_table, $element['url'])) {
-            exit("Aready crawlered!");
+            exit('this url has been crawlered');
+        }
+
+        $ret = $this->doRequest($element);
+
+        if (!$ret) {
+            exit("error occurred during the request!");
         }
 
         $this->addNewElements($ret);
 
         $this->save2db($element['url'], $ret);
+
         $this->handleFinish($element['url']);
     }
 
@@ -113,10 +122,10 @@ abstract class Crawler implements CrawlerState
         $this->_domCrawler = new DomCrawler($ret);
 
         $alinks = $this->_domCrawler->filterXpath('//a')->extract('href');
+
         foreach ($alinks as $a) {
             $url = $this->getInnerLink($a);
             if ($url && !$this->_redis->sIsMember(self::QUEUE_FINISH_PRIFIX . $this->_table, $url)) {
-                echo $url;
                 $element = array(
                     'url' => $url,
                     'attemps' => 0,
@@ -133,13 +142,19 @@ abstract class Crawler implements CrawlerState
 
     public function getInnerLink($url)
     {
+        //the second one
         $name = explode('.', $this->_baseUrl);
         $domain = $name[1];
 
+        // contains no domain
         if (strpos($url, $domain) === false) {
-            return false;
+            if (strpos($url, 'http') !== false) {
+                return false;
+            }
+            return $this->_baseUrl . '/' . trim($url);
         }
 
+        // contains domain
         if (strpos($url, "http") !== false) {
             return $url;
         }

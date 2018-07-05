@@ -5,10 +5,10 @@ namespace Jrw\Crawler;
 class TestCrawler extends Crawler
 {
 
-    // protected $_baseUrl = "http://www.baidu.com";
 
-    public function __construct()
+    public function __construct($baseUrl = "http://www.baidu.com")
     {
+        $this->_baseUrl = $baseUrl;
         $this->_table = md5($this->_baseUrl);
         parent::__construct();
     }

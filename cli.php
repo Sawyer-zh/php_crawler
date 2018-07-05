@@ -2,6 +2,16 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-$pool = new Jrw\Core\ProcessManager('Jrw\Crawler\TestCrawler');
+$options = getopt('u:');
+
+$url = $options['u'];
+
+$obj = new Jrw\Crawler\TestCrawler($url);
+
+if (!$obj->addBaseUrl()) {
+    exit('can not add base url');
+}
+
+$pool = new Jrw\Core\ProcessManager($obj, $url);
 
 $pool->start();

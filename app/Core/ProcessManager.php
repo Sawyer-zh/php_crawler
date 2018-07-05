@@ -2,8 +2,8 @@
 
 namespace Jrw\Core;
 
-use Swoole\Process\Pool;
 use ReflectionClass;
+use Swoole\Process\Pool;
 
 class ProcessManager
 {
@@ -18,13 +18,20 @@ class ProcessManager
 
     private $_class;
 
-    public function __construct($class)
+    private $_baseUrl;
+
+    public function __construct($class, $baseUrl)
     {
         $this->_conf = require __Dir__ . '/../Conf/process.php';
         $this->_pool = new Pool($this->_conf['num'], $this->_conf['ipc_type']);
         if (!is_subclass_of($class, 'Jrw\Crawler\Crawler')) {
             exit("the given class should be the subclass of Jrw\\Crawler\\Crawler");
         }
+
+        if (empty($baseUrl)) {
+            exit("must assign a baseUrl");
+        }
+        $this->_baseUrl = $baseUrl;
         $this->_class = $class;
         $this->_masterPid = posix_getpid();
     }
@@ -32,12 +39,15 @@ class ProcessManager
     public function start()
     {
         $this->_pool->on('WorkerStart', function ($pool, $workerId) {
+            
             $reflectionClass = new ReflectionClass($this->_class);
-            $this->_crawler = $reflectionClass->newInstance();
+
+            $this->_crawler = $reflectionClass->newInstance($this->_baseUrl);
 
             if ($this->isFinish()) {
                 $this->stop();
             }
+            
 
             $this->_crawler->run();
 

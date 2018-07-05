@@ -11,7 +11,7 @@ class Redis
     {
         $config = require __DIR__ . '/../Conf/redis.php';
         $this->_redis = new \Redis();
-        $this->_redis->pconnect($config['host'], $config['port']);
+        $this->_redis->connect($config['host'], $config['port']);
     }
 
     public function __call($name, $args)
