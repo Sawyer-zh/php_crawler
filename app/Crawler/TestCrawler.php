@@ -5,7 +5,6 @@ namespace Jrw\Crawler;
 class TestCrawler extends Crawler
 {
 
-
     public function __construct($baseUrl = "http://www.baidu.com")
     {
         $this->_baseUrl = $baseUrl;
@@ -15,6 +14,8 @@ class TestCrawler extends Crawler
 
     public function save2db($url, $res)
     {
+
+        $res = \mb_convert_encoding($res, "utf-8");
 
         $ret = $this->_mongodb->{$this->_mongodbName}->{$this->_table}->insertOne(
             [
