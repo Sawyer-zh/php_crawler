@@ -76,13 +76,13 @@ abstract class Crawler implements CrawlerState
             $response = $request->send();
         } catch (\Exception $e) {
             $element['error'] = $e->getMessage();
-            $this->handlerErrorRequest($element);
+            $this->handleError($element);
             return false;
         }
         return $response->getBody(true);
     }
 
-    public function handlerErrorRequest($element)
+    public function handleError($element)
     {
         if ($element['attemps'] >= self::RETRY_TIMES) {
             $this->_redis->sAdd(self::QUEUE_FAIL_PRIFIX . $this->_table, json_encode($element));
@@ -92,6 +92,7 @@ abstract class Crawler implements CrawlerState
         }
     }
 
+    // template method
     public function run()
     {
         $element = $this->getUrl();
@@ -112,7 +113,13 @@ abstract class Crawler implements CrawlerState
 
         $this->addNewElements($ret);
 
-        $this->save2db($element['url'], $ret);
+        try {
+            $this->save2db($element['url'], $ret);
+        } catch (\Exception $e) {
+            $element['error'] = $e->getMessage();
+            $this->handleError($element);
+            exit("save to db error");
+        }
 
         $this->handleFinish($element['url']);
     }
@@ -140,11 +147,17 @@ abstract class Crawler implements CrawlerState
         $this->_redis->sAdd(self::QUEUE_FINISH_PRIFIX . md5($this->_baseUrl), $url);
     }
 
+    //this might be wrong according to different base url
     public function getInnerLink($url)
     {
         //the second one
         $name = explode('.', $this->_baseUrl);
         $domain = $name[1];
+
+        if ($domain == 'com' || $domain == 'cn') {
+            $tmp = explode('//', $name[0]);
+            $domain = $tmp[1];
+        }
 
         // contains no domain
         if (strpos($url, $domain) === false) {
